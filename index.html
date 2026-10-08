@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS Sagemaker part 1 post read</title>
+<style>
+  :root{
+    --bg:#0a0a0a;
+    --bg-alt:#121212;
+    --surface:#1a1a1a;
+    --surface-2:#202020;
+    --border:#2c2c2c;
+    --border-light:#3a3a3a;
+    --text:#e9e9e7;
+    --text-dim:#b7b7b3;
+    --gray:#8d8d89;
+    --gray-dim:#5f5f5c;
+    --gold:#d4af37;
+    --gold-bright:#f3cc5c;
+    --gold-dim:#8a6d1d;
+    --gold-glow: rgba(212,175,55,0.18);
+    --radius:10px;
+    --maxw:880px;
+    --serif: "Iowan Old Style","Georgia","Times New Roman",serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse 900px 500px at 50% -10%, rgba(212,175,55,0.07), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  ::selection{ background:var(--gold-glow); color:#fff; }
+
+  a{ color:var(--gold-bright); text-decoration:none; border-bottom:1px solid var(--gold-dim); }
+  a:hover{ color:var(--gold); border-bottom-color:var(--gold); }
+
+  img{max-width:100%; display:block; border-radius:var(--radius); border:1px solid var(--border);}
+
+  h1,h2,h3,h4{ font-family:var(--serif); font-weight:600; color:#fdfaf0; letter-spacing:.2px; }
+
+  code, .mono{ font-family:var(--mono); font-size:0.88em; }
+
+  code{
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    padding:0.1em 0.42em;
+    border-radius:5px;
+    color:var(--gold-bright);
+  }
+
+  pre{
+    background:#0d0d0d;
+    border:1px solid var(--border);
+    border-left:3px solid var(--gold-dim);
+    border-radius:8px;
+    padding:16px 18px;
+    overflow-x:auto;
+    font-family:var(--mono);
+    font-size:0.84em;
+    color:var(--text-dim);
+  }
+  pre code{ background:none; border:none; padding:0; color:inherit; }
+
+  /* ---------- Layout shell ---------- */
+  .wrap{ max-width:var(--maxw); margin:0 auto; padding:0 24px; }
+
+  header.hero{
+    position:relative;
+    padding:88px 24px 60px;
+    border-bottom:1px solid var(--border);
+    overflow:hidden;
+  }
+  header.hero::before{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      linear-gradient(180deg, transparent 0%, var(--bg) 92%),
+      repeating-linear-gradient(135deg, rgba(212,175,55,0.035) 0 2px, transparent 2px 26px);
+    pointer-events:none;
+  }
+  .hero-inner{ max-width:var(--maxw); margin:0 auto; position:relative; }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:var(--mono); text-transform:uppercase; letter-spacing:2.5px;
+    font-size:0.72rem; color:var(--gold);
+    border:1px solid var(--gold-dim); border-radius:999px;
+    padding:6px 14px; background:rgba(212,175,55,0.06);
+  }
+  .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--gold); box-shadow:0 0 8px var(--gold); }
+  h1.title{ font-size:clamp(2rem, 5vw, 3.1rem); margin:22px 0 14px; line-height:1.12; }
+  h1.title em{ font-style:normal; color:var(--gold-bright); }
+  .lede{ font-size:1.12rem; color:var(--text-dim); max-width:66ch; margin:0 0 28px; }
+  .hero-meta{ display:flex; flex-wrap:wrap; gap:10px 26px; font-size:0.86rem; color:var(--gray); font-family:var(--mono); }
+  .hero-meta span strong{ color:var(--gold-bright); font-weight:600; }
+
+  nav.toc{
+    position:sticky; top:0; z-index:40;
+    background:rgba(10,10,10,0.88);
+    backdrop-filter:blur(10px) saturate(140%);
+    border-bottom:1px solid var(--border);
+  }
+  nav.toc .toc-scroll{
+    max-width:var(--maxw); margin:0 auto; padding:0 24px;
+    display:flex; gap:4px; overflow-x:auto; scrollbar-width:none;
+  }
+  nav.toc .toc-scroll::-webkit-scrollbar{ display:none; }
+  nav.toc a{
+    flex:0 0 auto;
+    border:none; color:var(--gray); font-size:0.82rem; font-family:var(--mono);
+    padding:14px 12px; white-space:nowrap; border-bottom:2px solid transparent;
+    transition:color .15s, border-color .15s;
+  }
+  nav.toc a:hover, nav.toc a.active{ color:var(--gold-bright); border-bottom-color:var(--gold); }
+
+  main{ padding:0 0 40px; }
+  section{ max-width:var(--maxw); margin:0 auto; padding:64px 24px; border-bottom:1px solid var(--border); }
+  section:last-of-type{ border-bottom:none; }
+
+  .kicker{
+    font-family:var(--mono); text-transform:uppercase; letter-spacing:2px;
+    font-size:0.72rem; color:var(--gold); margin:0 0 10px;
+  }
+  h2.sec-title{ font-size:clamp(1.5rem,3vw,2.05rem); margin:0 0 20px; }
+  h3.sub-title{ font-size:1.18rem; margin:34px 0 12px; color:var(--gold-bright); }
+  p{ margin:0 0 16px; color:var(--text-dim); }
+  p strong, li strong{ color:var(--text); font-weight:600; }
+  ul, ol{ color:var(--text-dim); padding-left:22px; margin:0 0 16px; }
+  li{ margin-bottom:7px; }
+
+  /* ---------- Cards / grids ---------- */
+  .card-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin:22px 0; }
+  .card{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:18px 18px 16px; transition:border-color .15s, transform .15s;
+  }
+  .card:hover{ border-color:var(--gold-dim); transform:translateY(-2px); }
+  .card .num{ font-family:var(--mono); color:var(--gold); font-size:0.78rem; letter-spacing:1px; }
+  .card h4{ margin:8px 0 6px; font-size:1.02rem; }
+  .card p{ margin:0; font-size:0.92rem; }
+
+  .callout{
+    border:1px solid var(--gold-dim); border-left:3px solid var(--gold);
+    background:linear-gradient(90deg, var(--gold-glow), transparent 60%);
+    border-radius:8px; padding:16px 20px; margin:22px 0;
+  }
+  .callout p:last-child{ margin:0; }
+  .callout .label{ font-family:var(--mono); font-size:0.72rem; text-transform:uppercase; letter-spacing:1.5px; color:var(--gold-bright); margin-bottom:6px; display:block;}
+
+  .warn{ border-color:#8a5a1d; border-left-color:#e0a23a; background:linear-gradient(90deg, rgba(224,162,58,0.1), transparent 60%);}
+  .warn .label{ color:#e0a23a; }
+
+  /* ---------- Tables ---------- */
+  .table-wrap{ overflow-x:auto; margin:20px 0; border:1px solid var(--border); border-radius:var(--radius); }
+  table{ width:100%; border-collapse:collapse; font-size:0.9rem; }
+  thead th{
+    text-align:left; font-family:var(--mono); font-size:0.72rem; text-transform:uppercase;
+    letter-spacing:1px; color:var(--gold); background:var(--surface-2);
+    padding:12px 16px; border-bottom:1px solid var(--border);
+  }
+  tbody td{ padding:11px 16px; border-bottom:1px solid var(--border); color:var(--text-dim); vertical-align:top;}
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background:rgba(212,175,55,0.03); }
+  tbody td:first-child{ color:var(--text); font-family:var(--mono); font-size:0.85rem; white-space:nowrap;}
+
+  /* ---------- Accordion ---------- */
+  details.acc{
+    border:1px solid var(--border); border-radius:var(--radius); margin-bottom:10px;
+    background:var(--surface); overflow:hidden;
+  }
+  details.acc[open]{ border-color:var(--gold-dim); }
+  details.acc summary{
+    cursor:pointer; list-style:none; padding:15px 18px; font-weight:600; color:var(--text);
+    display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:0.97rem;
+  }
+  details.acc summary::-webkit-details-marker{ display:none; }
+  details.acc summary::after{
+    content:"+"; font-family:var(--mono); color:var(--gold); font-size:1.2rem; flex:0 0 auto;
+    transition:transform .2s;
+  }
+  details.acc[open] summary::after{ transform:rotate(45deg); }
+  details.acc .acc-body{ padding:0 18px 18px; color:var(--text-dim); font-size:0.92rem; }
+  details.acc .acc-body p:last-child{ margin-bottom:0; }
+
+  /* ---------- Tabs ---------- */
+  .tabs{ margin:20px 0; }
+  .tab-nav{ display:flex; gap:6px; flex-wrap:wrap; border-bottom:1px solid var(--border); margin-bottom:18px;}
+  .tab-btn{
+    font-family:var(--mono); font-size:0.8rem; color:var(--gray); background:none; border:none;
+    padding:10px 14px; cursor:pointer; border-bottom:2px solid transparent; transition:color .15s,border-color .15s;
+  }
+  .tab-btn.active{ color:var(--gold-bright); border-bottom-color:var(--gold); }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; animation:fadein .25s ease; }
+  @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
+
+  /* ---------- Diagram frame ---------- */
+  .diagram-frame{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:18px; margin:22px 0;
+  }
+  .diagram-frame svg{ width:100%; height:auto; display:block; }
+  .diagram-caption{ font-size:0.82rem; color:var(--gray); text-align:center; margin-top:10px; font-family:var(--mono); }
+
+  /* ---------- Bar chart (css based) ---------- */
+  .barchart{ margin:22px 0; display:flex; flex-direction:column; gap:12px; }
+  .bar-row{ display:grid; grid-template-columns:168px 1fr 90px; align-items:center; gap:12px; }
+  .bar-label{ font-size:0.84rem; color:var(--text-dim); font-family:var(--mono); text-align:right;}
+  .bar-track{ background:var(--surface-2); border-radius:6px; height:22px; overflow:hidden; border:1px solid var(--border);}
+  .bar-fill{ height:100%; background:linear-gradient(90deg, var(--gold-dim), var(--gold)); border-radius:6px 0 0 6px; position:relative;
+    width:0%; transition:width 1.1s cubic-bezier(.2,.8,.2,1); }
+  .bar-val{ font-family:var(--mono); font-size:0.84rem; color:var(--gold-bright); }
+  @media (max-width:560px){ .bar-row{ grid-template-columns:100px 1fr 60px; } .bar-label{font-size:0.74rem;} }
+
+  /* ---------- AUC toggle widget ---------- */
+  .auc-widget{
+    border:1px solid var(--border); border-radius:var(--radius); background:var(--surface);
+    padding:22px; margin:22px 0;
+  }
+  .auc-toggle{ display:flex; gap:8px; margin-bottom:20px; background:var(--surface-2); padding:4px; border-radius:8px; width:fit-content;}
+  .auc-toggle button{
+    font-family:var(--mono); font-size:0.82rem; padding:8px 16px; border-radius:6px; border:none;
+    background:none; color:var(--gray); cursor:pointer; transition:all .15s;
+  }
+  .auc-toggle button.active{ background:var(--gold); color:#141004; font-weight:700; }
+  .auc-display{ display:flex; align-items:baseline; gap:18px; flex-wrap:wrap;}
+  .auc-number{ font-family:var(--serif); font-size:3.2rem; color:var(--gold-bright); line-height:1; }
+  .auc-verdict{ font-size:0.95rem; color:var(--text-dim); max-width:46ch; }
+  .auc-verdict strong{ color:var(--text); }
+
+  /* ---------- Column explorer ---------- */
+  .col-explorer{ display:flex; flex-wrap:wrap; gap:8px; margin:20px 0 10px; }
+  .col-chip{
+    font-family:var(--mono); font-size:0.78rem; color:var(--text-dim); background:var(--surface-2);
+    border:1px solid var(--border); padding:7px 13px; border-radius:999px; cursor:pointer;
+    transition:all .15s;
+  }
+  .col-chip:hover{ border-color:var(--gold-dim); color:var(--text); }
+  .col-chip.active{ background:var(--gold); color:#141004; border-color:var(--gold); font-weight:700; }
+  .col-chip.leak{ box-shadow:0 0 0 1px var(--gold-dim) inset; }
+  .col-detail{
+    border:1px solid var(--border); border-radius:var(--radius); background:var(--surface);
+    padding:18px 20px; min-height:74px; font-size:0.92rem; color:var(--text-dim);
+  }
+  .col-detail .cd-title{ color:var(--gold-bright); font-family:var(--mono); font-weight:700; margin-bottom:6px; display:block;}
+  .col-detail .tag{ display:inline-block; font-size:0.68rem; font-family:var(--mono); text-transform:uppercase; letter-spacing:1px;
+    background:rgba(212,175,55,0.12); color:var(--gold); border:1px solid var(--gold-dim); padding:2px 8px; border-radius:4px; margin-left:8px;}
+
+  /* ---------- Stacked split bar ---------- */
+  .split-bar{ display:flex; width:100%; height:38px; border-radius:8px; overflow:hidden; border:1px solid var(--border); margin:18px 0 10px;}
+  .split-seg{ display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:0.78rem; color:#141004; font-weight:700;}
+  .seg-train{ background:var(--gold); width:70%; }
+  .seg-val{ background:#b89230; width:15%; color:#141004;}
+  .seg-batch{ background:#746326; width:15%; color:#f3e9c9;}
+  .split-legend{ display:flex; gap:22px; flex-wrap:wrap; font-size:0.82rem; color:var(--gray); font-family:var(--mono);}
+  .split-legend span{ display:inline-flex; align-items:center; gap:7px;}
+  .swatch{ width:10px; height:10px; border-radius:2px; display:inline-block;}
+
+  /* ---------- Pipeline steps ---------- */
+  .pipeline{ display:flex; flex-direction:column; gap:0; margin:24px 0; }
+  .pstep{ display:flex; gap:18px; position:relative; padding-bottom:28px; }
+  .pstep:last-child{ padding-bottom:0; }
+  .pstep::before{
+    content:""; position:absolute; left:17px; top:38px; bottom:0; width:1px; background:var(--border);
+  }
+  .pstep:last-child::before{ display:none; }
+  .pnode{
+    flex:0 0 auto; width:36px; height:36px; border-radius:50%; border:1px solid var(--gold-dim);
+    background:var(--surface-2); color:var(--gold); display:flex; align-items:center; justify-content:center;
+    font-family:var(--mono); font-size:0.85rem; z-index:1;
+  }
+  .pcontent h4{ margin:4px 0 6px; font-size:1rem; color:var(--text); }
+  .pcontent p{ margin:0; font-size:0.9rem; }
+
+  /* ---------- Footer ---------- */
+  footer{
+    text-align:center; padding:48px 24px 64px; color:var(--gray-dim); font-size:0.82rem; font-family:var(--mono);
+    border-top:1px solid var(--border);
+  }
+  footer .fgold{ color:var(--gold); }
+
+  /* ---------- Misc ---------- */
+  .two-col{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  @media (max-width:680px){ .two-col{ grid-template-columns:1fr; } section{padding:48px 20px;} header.hero{padding:70px 20px 44px;} }
+
+  .pill-row{ display:flex; flex-wrap:wrap; gap:8px; margin:16px 0; }
+  .pill{ font-family:var(--mono); font-size:0.76rem; background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim); padding:5px 11px; border-radius:999px;}
+
+  .hr-gold{ height:1px; background:linear-gradient(90deg, transparent, var(--gold-dim), transparent); border:none; margin:40px 0; }
+
+  .top-link{
+    position:fixed; bottom:22px; right:22px; width:42px; height:42px; border-radius:50%;
+    background:var(--surface); border:1px solid var(--gold-dim); color:var(--gold); display:flex;
+    align-items:center; justify-content:center; font-size:1.1rem; z-index:50; opacity:0; pointer-events:none;
+    transition:opacity .2s; text-decoration:none;
+  }
+  .top-link.show{ opacity:1; pointer-events:auto; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow"><span class="dot"></span> Post-Read &middot; Cloud ML Infrastructure</span>
+    <h1 class="title">AWS Sagemaker <em>Part 1</em> Post Read</h1>
+    <p class="lede">
+      A private, production-style SageMaker setup, built the way a company with customer data would build it &mdash;
+      a real network, a scoped role, a VS&nbsp;Code connection into it, and a messy CSV pulled into shape for training.
+    </p>
+    <div class="hero-meta">
+      <span>Topic <strong>Platform &amp; Data</strong></span>
+      <span>Dataset <strong>12,000 orders &middot; returns.csv</strong></span>
+      <span>Task <strong>Binary classification</strong></span>
+      <span>Algorithm <strong>Built-in XGBoost</strong></span>
+    </div>
+  </div>
+</header>
+
+<nav class="toc" id="toc">
+  <div class="toc-scroll">
+    <a href="#overview">Overview</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#project">The Project</a>
+    <a href="#economics">Economics</a>
+    <a href="#storage">S3</a>
+    <a href="#network">Network</a>
+    <a href="#identity">Role &amp; Domain</a>
+    <a href="#data">The Data</a>
+    <a href="#leakage">Leakage</a>
+    <a href="#wrangler">Data Wrangler</a>
+    <a href="#format">XGBoost Format</a>
+    <a href="#summary">Summary</a>
+    <a href="#reading">Further Reading</a>
+  </div>
+</nav>
+
+<main>
+
+  <!-- ========== OVERVIEW ========== -->
+  <section id="overview">
+    <p class="kicker">Overview</p>
+    <h2 class="sec-title">From hand-built infrastructure to a managed platform</h2>
+    <p>
+      Every model built so far in this track was trained on a local machine, packaged into a container, and shipped
+      by hand &mdash; the Dockerfile, the FastAPI app, the load balancer, the health check, the scaling, all written
+      from scratch. That approach works, and it teaches every moving part. But it also means owning every moving part.
+    </p>
+    <p>
+      <strong>SageMaker</strong> is AWS's managed machine learning service. Its pitch: hand over the parts that are
+      identical for every model. Feed it data in S3 and point it at an algorithm or a container. It rents a machine
+      to train on and discards that machine the moment training ends. It then puts the resulting model behind an
+      HTTPS endpoint with logging, metrics, and autoscaling already wired in.
+    </p>
+    <p>
+      The work splits across two distinct roles on a real team, and this material walks through both.
+    </p>
+    <div class="card-grid">
+      <div class="card">
+        <span class="num">ROLE 01</span>
+        <h4>Platform engineer</h4>
+        <p>Builds the network, the IAM role, and the SageMaker domain &mdash; the infrastructure every model will run inside.</p>
+      </div>
+      <div class="card">
+        <span class="num">ROLE 02</span>
+        <h4>ML engineer</h4>
+        <p>Connects an editor to a machine inside that network and does the actual data and model work in code.</p>
+      </div>
+    </div>
+    <div class="callout">
+      <span class="label">Where this is headed</span>
+      <p>
+        This post covers getting the platform and the data ready: the network, the identity layer, and a clean,
+        correctly-shaped dataset sitting in S3. A second stage (not covered here) takes those four prepared files and
+        trains &amp; serves an actual model three different ways.
+      </p>
+    </div>
+  </section>
+
+  <!-- ========== ARCHITECTURE ========== -->
+  <section id="architecture">
+    <p class="kicker">Architecture</p>
+    <h2 class="sec-title">Where SageMaker fits</h2>
+    <p>
+      SageMaker gives you the same pieces a hand-built deployment needs &mdash; a machine to run on, a network, an
+      address, something watching it &mdash; already joined together. Everything in the system communicates through
+      one place: <strong>S3</strong>. Nothing talks to anything else directly, which is also what makes the system
+      debuggable: if you know where each piece reads and writes in S3, you can trace almost any problem.
+    </p>
+
+    <div class="diagram-frame">
+      <svg viewBox="0 0 760 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram showing S3 at the center, connected to a training job, a model file, an endpoint and a batch transform job">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#8a6d1d"/>
+          </marker>
+        </defs>
+        <!-- S3 hub -->
+        <rect x="320" y="150" width="120" height="60" rx="8" fill="#1a1a1a" stroke="#d4af37" stroke-width="1.4"/>
+        <text x="380" y="176" text-anchor="middle" fill="#f3cc5c" font-family="monospace" font-size="15" font-weight="700">S3</text>
+        <text x="380" y="195" text-anchor="middle" fill="#8d8d89" font-family="monospace" font-size="9">everything meets here</text>
+
+        <!-- Training job -->
+        <rect x="80" y="40" width="150" height="56" rx="8" fill="#1a1a1a" stroke="#2c2c2c"/>
+        <text x="155" y="63" text-anchor="middle" fill="#e9e9e7" font-family="sans-serif" font-size="12.5" font-weight="600">Training job</text>
+        <text x="155" y="80" text-anchor="middle" fill="#8d8d89" font-family="monospace" font-size="9">rented machine, few minutes</text>
+
+        <!-- model.tar.gz -->
+        <rect x="80" y="244" width="150" height="56" rx="8" fill="#1a1a1a" stroke="#2c2c2c"/>
+        <text x="155" y="267" text-anchor="middle" fill="#e9e9e7" font-family="sans-serif" font-size="12.5" font-weight="600">model.tar.gz</text>
+        <text x="155" y="284" text-anchor="middle" fill="#8d8d89" font-family="monospace" font-size="9">written back to S3</text>
+
+        <!-- Endpoint -->
+        <rect x="530" y="40" width="160" height="56" rx="8" fill="#1a1a1a" stroke="#2c2c2c"/>
+        <text x="610" y="63" text-anchor="middle" fill="#e9e9e7" font-family="sans-serif" font-size="12.5" font-weight="600">Endpoint</text>
+        <text x="610" y="80" text-anchor="middle" fill="#8d8d89" font-family="monospace" font-size="9">answers over HTTPS</text>
+
+        <!-- Batch transform -->
+        <rect x="530" y="244" width="160" height="56" rx="8" fill="#1a1a1a" stroke="#2c2c2c"/>
+        <text x="610" y="267" text-anchor="middle" fill="#e9e9e7" font-family="sans-serif" font-size="12.5" font-weight="600">Batch transform job</text>
+        <text x="610" y="284" text-anchor="middle" fill="#8d8d89" font-family="monospace" font-size="9">scores a whole folder</text>
+
+        <!-- arrows: training reads from s3 -->
+        <path d="M 320 165 L 230 75" fill="none" stroke="#8a6d1d" stroke-width="1.3" marker-end="url(#arrow)"/>
+        <!-- training writes model -->
+        <path d="M 230 90 L 320 185" fill="none" stroke="#8a6d1d" stroke-width="1.3" marker-end="url(#arrow)"/>
+        <!-- s3 to model file -->
+        <path d="M 320 195 L 230 258" fill="none" stroke="#8a6d1d" stroke-width="1.3" marker-end="url(#arrow)"/>
+        <!-- endpoint loads model from s3 -->
+        <path d="M 530 70 L 440 165" fill="none" stroke="#8a6d1d" stroke-width="1.3" marker-end="url(#arrow)"/>
+        <!-- batch loads model from s3 -->
+        <path d="M 530 260 L 440 190" fill="none" stroke="#8a6d1d" stroke-width="1.3" marker-end="url(#arrow)"/>
+
+        <text x="380" y="322" text-anchor="middle" fill="#5f5f5c" font-family="monospace" font-size="9.5">your code writes training files to S3 &middot; every other arrow is SageMaker reading or writing the same bucket</text>
+      </svg>
+      <p class="diagram-caption">The entire data flow, reduced to one hub and four spokes</p>
+    </div>
+
+    <p>
+      SageMaker has dozens of features, but four of them carry most of the weight on a real team, and all four are
+      normally driven from code rather than console forms &mdash; code can be reviewed, kept in version control, and
+      re-run next month with one changed line. A form filled in by hand cannot.
+    </p>
+    <div class="card-grid">
+      <div class="card"><span class="num">01</span><h4>Training jobs</h4><p>Renting a large machine for twenty minutes beats owning one outright.</p></div>
+      <div class="card"><span class="num">02</span><h4>Endpoints</h4><p>HTTPS, logs, metrics and autoscaling, without writing a server.</p></div>
+      <div class="card"><span class="num">03</span><h4>Pipelines</h4><p>Chain training, evaluation and deployment steps into one repeatable run.</p></div>
+      <div class="card"><span class="num">04</span><h4>Model registry</h4><p>Tracks which model version is currently live.</p></div>
+    </div>
+    <p>
+      Low-code tools like Canvas and Data Wrangler exist alongside this, aimed mostly at analysts rather than
+      engineers &mdash; they resurface later in the context of where they actually fit.
+    </p>
+  </section>
+
+  <!-- ========== THE PROJECT ========== -->
+  <section id="project">
+    <p class="kicker">The Project</p>
+    <h2 class="sec-title">Predicting returns for an online shop</h2>
+    <p>
+      The project throughout is an online shop selling clothes, shoes, electronics, home goods, beauty products and
+      books. More than one order in five comes back, and every return costs shipping in both directions &mdash; the
+      item often can't be resold at full price. If the shop knew at checkout which orders were likely to return, it
+      could act early: show a size guide, confirm a cash-on-delivery order, or plan stock for items that tend to come back.
+    </p>
+    <div class="callout">
+      <span class="label">The question the model answers</span>
+      <p>When an order is placed, how likely is it to be returned? The label is yes/no &mdash; <strong>binary classification</strong> &mdash; and the model's output is a probability between 0 and 1.</p>
+    </div>
+    <p>
+      The data is one CSV, <code>returns.csv</code>, with 12,000 past orders, one row per order. It's synthetic,
+      generated from known rules so that whatever a tool finds can be verified &mdash; but it's shaped like a real
+      export from a shop's order database, mess included: a header row, text categories, missing values, and the
+      label in the last column.
+    </p>
+
+    <h3 class="sub-title">Explore the columns</h3>
+    <p>Click a column to see what it holds. The one that causes trouble is marked.</p>
+    <div class="col-explorer" id="colExplorer">
+      <button class="col-chip" data-col="order_id">order_id</button>
+      <button class="col-chip" data-col="order_date">order_date</button>
+      <button class="col-chip" data-col="category">category</button>
+      <button class="col-chip" data-col="price">price</button>
+      <button class="col-chip" data-col="discount_pct">discount_pct</button>
+      <button class="col-chip" data-col="delivery_days">delivery_days</button>
+      <button class="col-chip" data-col="customer_tenure_days">customer_tenure_days</button>
+      <button class="col-chip" data-col="prior_orders">prior_orders</button>
+      <button class="col-chip" data-col="prior_returns">prior_returns</button>
+      <button class="col-chip" data-col="payment_method">payment_method</button>
+      <button class="col-chip" data-col="is_gift">is_gift</button>
+      <button class="col-chip" data-col="seller_rating">seller_rating</button>
+      <button class="col-chip leak" data-col="refund_amount">refund_amount &#9888;</button>
+      <button class="col-chip" data-col="returned">returned</button>
+    </div>
+    <div class="col-detail" id="colDetail">
+      <span class="cd-title">Pick a column above</span>
+      Each one maps to a plain-English description of what it holds and when it would realistically be known.
+    </div>
+  </section>
+
+  <!-- ========== ECONOMICS ========== -->
+  <section id="economics">
+    <p class="kicker">Economics</p>
+    <h2 class="sec-title">What this costs, and what keeps billing</h2>
+    <p>
+      SageMaker bills by the second for anything it runs on your behalf. The trap: some of those machines keep
+      running long after anyone is looking at them. Prices below are for what this stage of the setup uses, in
+      <code>us-east-1</code>, as of the October 2026 AWS price list.
+    </p>
+
+    <div class="barchart" id="costChart" aria-label="Hourly cost comparison bar chart">
+      <div class="bar-row">
+        <span class="bar-label">JupyterLab space</span>
+        <div class="bar-track"><div class="bar-fill" data-pct="6" data-usd="$0.115/hr"></div></div>
+        <span class="bar-val">$0.115/hr</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">NAT gateway</span>
+        <div class="bar-track"><div class="bar-fill" data-pct="2.4" data-usd="$0.045/hr"></div></div>
+        <span class="bar-val">$0.045/hr</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">VPC endpoints (×6)</span>
+        <div class="bar-track"><div class="bar-fill" data-pct="6.3" data-usd="$0.12/hr"></div></div>
+        <span class="bar-val">$0.12/hr</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Real-time endpoint</span>
+        <div class="bar-track"><div class="bar-fill" data-pct="6" data-usd="$0.115/hr"></div></div>
+        <span class="bar-val">$0.115/hr</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Canvas workspace</span>
+        <div class="bar-track"><div class="bar-fill" data-pct="100" data-usd="$1.90/hr"></div></div>
+        <span class="bar-val">$1.90/hr</span>
+      </div>
+    </div>
+
+    <p>Training jobs and batch jobs stop themselves when the work finishes. Nothing else on this list does.</p>
+
+    <div class="two-col">
+      <div class="callout warn">
+        <span class="label">Bills until you log out</span>
+        <p><strong>Canvas</strong> bills from the moment it opens until you explicitly log out of it &mdash; closing the browser tab does not stop the meter. Left open, it costs roughly $1,400/month.</p>
+      </div>
+      <div class="callout warn">
+        <span class="label">Bills while it exists</span>
+        <p>The <strong>NAT gateway and interface endpoints</strong> bill every hour they exist, used or not &mdash; about $120/month if forgotten. A <strong>real-time endpoint</strong> left running costs roughly $84/month.</p>
+      </div>
+    </div>
+    <p>This stage of the work, done once, costs about one US dollar &mdash; and the single biggest part of that is Canvas.</p>
+  </section>
+
+  <!-- ========== S3 ========== -->
+  <section id="storage">
+    <p class="kicker">Storage</p>
+    <h2 class="sec-title">S3, the place everything meets</h2>
+    <p>
+      S3 stores files &mdash; called <strong>objects</strong> &mdash; inside <strong>buckets</strong>. A bucket name
+      is unique across all of AWS, not just one account, so names usually carry initials or a date to stay unique.
+    </p>
+    <p>
+      Inside a bucket there are no real folders. An object's name can contain slashes (<code>train/train.csv</code>),
+      and the console displays the part before the slash as if it were a folder. That part is called a
+      <strong>prefix</strong>, and SageMaker asks for prefixes constantly: told to read <code>s3://bucket/train/</code>,
+      a training job reads every object whose name starts with <code>train/</code>.
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Prefix</th><th>Holds</th><th>Written by</th></tr></thead>
+        <tbody>
+          <tr><td>raw/</td><td>The orders CSV as it arrives</td><td>Manual upload</td></tr>
+          <tr><td>train/, validation/</td><td>Training files in XGBoost format</td><td>Data prep script</td></tr>
+          <tr><td>batch-input/, batch-labels/</td><td>Rows to score, and their answers kept aside</td><td>Data prep script</td></tr>
+          <tr><td>output/</td><td>The trained model, model.tar.gz</td><td>The training job</td></tr>
+          <tr><td>batch-output/</td><td>Scores for those rows</td><td>The batch transform job</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Block Public Access stays on throughout &mdash; nothing in this setup needs a public bucket. SageMaker reads it
+      entirely through the IAM role described below.
+    </p>
+  </section>
+
+  <!-- ========== NETWORK ========== -->
+  <section id="network">
+    <p class="kicker">Infrastructure</p>
+    <h2 class="sec-title">A private network for SageMaker</h2>
+    <p>
+      Companies holding customer data put their ML machines in <strong>private subnets</strong>, where nothing on the
+      internet can start a connection to them. A SageMaker domain configured this way is called <strong>VPC only</strong>.
+      Private machines still need two ways out: to AWS services (S3, SageMaker itself), and to the open internet for
+      things like <code>pip install</code>.
+    </p>
+    <div class="two-col">
+      <div class="card">
+        <h4>VPC endpoints</h4>
+        <p>Private doors from the VPC to one AWS service each. Traffic through them never leaves AWS's own network.</p>
+      </div>
+      <div class="card">
+        <h4>NAT gateway</h4>
+        <p>Lets machines in private subnets start connections outward, while nothing outside can start one in &mdash; a one-way door.</p>
+      </div>
+    </div>
+
+    <div class="diagram-frame">
+      <svg viewBox="0 0 760 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram of the private VPC network with two private subnets, a NAT gateway, an internet gateway, and interface endpoints to AWS services">
+        <!-- VPC outline -->
+        <rect x="20" y="20" width="720" height="380" rx="10" fill="none" stroke="#2c2c2c" stroke-dasharray="4 4"/>
+        <text x="40" y="44" fill="#8d8d89" font-family="monospace" font-size="11">VPC &middot; 10.0.0.0/16</text>
+
+        <!-- private subnet A -->
+        <rect x="50" y="64" width="300" height="150" rx="8" fill="#161616" stroke="#2c2c2c"/>
+        <text x="66" y="84" fill="#c9c9c9" font-family="monospace" font-size="10">private subnet &middot; AZ a</text>
+        <rect x="70" y="100" width="260" height="46" rx="6" fill="#1a1a1a" stroke="#d4af37" stroke-width="1"/>
+        <text x="200" y="128" text-anchor="middle" fill="#f3cc5c" font-family="sans-serif" font-size="11.5" font-weight="600">SageMaker space (VS Code)</text>
+
+        <!-- private subnet B -->
+        <rect x="410" y="64" width="300" height="150" rx="8" fill="#161616" stroke="#2c2c2c"/>
+        <text x="426" y="84" fill="#c9c9c9" font-family="monospace" font-size="10">private subnet &middot; AZ b</text>
+        <rect x="430" y="100" width="260" height="46" rx="6" fill="#1a1a1a" stroke="#3a3a3a" stroke-width="1"/>
+        <text x="560" y="122" text-anchor="middle" fill="#c9c9c9" font-family="sans-serif" font-size="10.5">interface endpoints</text>
+        <text x="560" y="137" text-anchor="middle" fill="#5f5f5c" font-family="monospace" font-size="8.5">sagemaker.api &middot; sts &middot; logs &middot; ssm</text>
+
+        <!-- NAT gateway -->
+        <rect x="150" y="250" width="160" height="50" rx="8" fill="#1a1a1a" stroke="#d4af37" stroke-width="1.2"/>
+        <text x="230" y="280" text-anchor="middle" fill="#f3cc5c" font-family="sans-serif" font-size="11.5" font-weight="600">NAT gateway</text>
+
+        <!-- S3 gateway endpoint -->
+        <rect x="450" y="250" width="160" height="50" rx="8" fill="#1a1a1a" stroke="#3a3a3a"/>
+        <text x="530" y="280" text-anchor="middle" fill="#c9c9c9" font-family="sans-serif" font-size="11.5" font-weight="600">S3 gateway endpoint</text>
+
+        <!-- internet gateway -->
+        <rect x="150" y="340" width="160" height="46" rx="8" fill="#101010" stroke="#2c2c2c"/>
+        <text x="230" y="368" text-anchor="middle" fill="#8d8d89" font-family="sans-serif" font-size="11">Internet gateway</text>
+
+        <!-- s3 bucket -->
+        <rect x="450" y="340" width="160" height="46" rx="8" fill="#101010" stroke="#2c2c2c"/>
+        <text x="530" y="368" text-anchor="middle" fill="#8d8d89" font-family="sans-serif" font-size="11">S3 bucket</text>
+
+        <!-- connections -->
+        <path d="M200 146 L230 250" stroke="#8a6d1d" stroke-width="1.2" fill="none"/>
+        <path d="M230 300 L230 340" stroke="#8a6d1d" stroke-width="1.2" fill="none"/>
+        <path d="M200 146 L530 250" stroke="#3a3a3a" stroke-width="1.2" fill="none"/>
+        <path d="M530 300 L530 340" stroke="#3a3a3a" stroke-width="1.2" fill="none"/>
+        <path d="M560 146 L530 250" stroke="#3a3a3a" stroke-width="1.2" fill="none"/>
+
+        <text x="380" y="410" text-anchor="middle" fill="#5f5f5c" font-family="monospace" font-size="9.5">gold path = outbound internet via NAT &middot; gray path = private AWS-service traffic, never leaves AWS</text>
+      </svg>
+      <p class="diagram-caption">Two private subnets, one outbound door, and private doors to AWS services</p>
+    </div>
+
+    <h3 class="sub-title">What each interface endpoint is for</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Endpoint</th><th>Who calls it</th><th>Why it's needed</th></tr></thead>
+        <tbody>
+          <tr><td>s3</td><td>Code and Canvas</td><td>Reading and writing the bucket (free, gateway-type)</td></tr>
+          <tr><td>sagemaker.api</td><td>Studio and code</td><td>Starting spaces and jobs &mdash; every SageMaker call</td></tr>
+          <tr><td>sagemaker.runtime</td><td>Code</td><td>Calling a deployed endpoint for predictions</td></tr>
+          <tr><td>sts, logs</td><td>SageMaker Python SDK</td><td>Getting credentials and reading job logs</td></tr>
+          <tr><td>ssm, ssmmessages</td><td>Remote access</td><td>The tunnel between a laptop and the space</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Interface endpoints aren't free &mdash; six of them cost about $0.12/hr combined, every hour they exist, which
+      is why they get deleted at the end of a session rather than left running between sessions.
+    </p>
+
+    <div class="callout">
+      <span class="label">On stricter networks</span>
+      <p>
+        Some teams remove the NAT gateway entirely, so every outbound call must go through an endpoint. It works, but
+        the gaps are hard to find &mdash; a domain missing even one needed endpoint (Athena, Glue, EMR Serverless, or
+        Cognito, for Canvas specifically) can leave a tool's UI spinning indefinitely with no error at all. A common
+        middle ground keeps the NAT gateway but puts an allow-list proxy or firewall in front of it.
+      </p>
+    </div>
+  </section>
+
+  <!-- ========== IDENTITY ========== -->
+  <section id="identity">
+    <p class="kicker">Identity &amp; Access</p>
+    <h2 class="sec-title">A role, a domain, and a space</h2>
+    <p>
+      A <strong>domain</strong> is SageMaker's container for users, their settings, their network, and the role their
+      work runs as. Inside it, each person gets a <strong>user profile</strong>. A <strong>space</strong> is a named
+      disk plus a machine that runs an editor on top of it &mdash; the machine can be stopped while the disk persists.
+    </p>
+
+    <div class="pipeline">
+      <div class="pstep">
+        <div class="pnode">1</div>
+        <div class="pcontent"><h4>IAM role</h4><p>Every script and every job acts as one role. A managed policy covers SageMaker itself; a small custom policy names the bucket explicitly, since the managed policy only covers buckets with "sagemaker" in the name.</p></div>
+      </div>
+      <div class="pstep">
+        <div class="pnode">2</div>
+        <div class="pcontent"><h4>Domain</h4><p>Created as <strong>VPC only</strong>, pointed at the private VPC, its subnets, and the role from step one.</p></div>
+      </div>
+      <div class="pstep">
+        <div class="pnode">3</div>
+        <div class="pcontent"><h4>User profile &amp; space</h4><p>A named disk plus a machine, created inside the domain, with remote access turned on so an external editor can connect.</p></div>
+      </div>
+      <div class="pstep">
+        <div class="pnode">4</div>
+        <div class="pcontent"><h4>Remote connection</h4><p>An editor on a laptop opens a tunnel into the space through Systems Manager &mdash; no port is ever opened to the internet.</p></div>
+      </div>
+    </div>
+
+    <h3 class="sub-title">What the role is actually allowed to do</h3>
+    <div class="tabs" id="roleTabs">
+      <div class="tab-nav">
+        <button class="tab-btn active" data-tab="t1">SageMaker access</button>
+        <button class="tab-btn" data-tab="t2">Bucket access</button>
+        <button class="tab-btn" data-tab="t3">Remote session access</button>
+      </div>
+      <div class="tab-panel active" id="t1">
+        <p>A managed policy covers creating and running SageMaker resources &mdash; training jobs, endpoints, domains, spaces. It's broad by default: it can create any SageMaker resource in the account, which a stricter team would narrow down to a hand-written action list.</p>
+      </div>
+      <div class="tab-panel" id="t2">
+        <p>A custom inline policy names the bucket explicitly, in two parts: permission to list the bucket itself, and separately, permission to read/write/delete the objects inside it. Both are required &mdash; a policy covering only the bucket listing lets a role see a file's name without being able to download it.</p>
+      </div>
+      <div class="tab-panel" id="t3">
+        <p>Connecting an editor to a space calls a specific session-start action that the broad SageMaker policy does not include. A dedicated policy grants it, scoped so a user can only start a session on spaces belonging to their own profile. Missing this permission produces a vague, unhelpful connection failure with no indication the role is the cause.</p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <span class="label">Idle shutdown</span>
+      <p>
+        A JupyterLab space bills while it runs, connected or not. Idle shutdown stops it automatically after a set
+        period of inactivity &mdash; the minimum allowed is 60 minutes, which exists specifically because people forget
+        to stop spaces manually.
+      </p>
+    </div>
+  </section>
+
+  <!-- ========== DATA ========== -->
+  <section id="data">
+    <p class="kicker">Exploration</p>
+    <h2 class="sec-title">A first look at the data</h2>
+    <p>
+      With the role in place, code running on the space reads straight from S3 &mdash; the downloaded bytes go
+      directly into a dataframe, nothing touches disk. A first pass over <code>returns.csv</code> surfaces the shape
+      of the problem immediately.
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Rows &times; columns</td><td>12,000 &times; 14</td></tr>
+          <tr><td>Return rate</td><td>22.8%</td></tr>
+          <tr><td>Missing values</td><td>502, all in <code>seller_rating</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      A model that always predicted "not returned" would be right 77% of the time &mdash; which is exactly why this
+      kind of problem gets judged by <strong>AUC</strong> rather than raw accuracy. Accuracy rewards the lazy answer;
+      AUC measures how well the model ranks returned orders above non-returned ones across every possible threshold.
+    </p>
+  </section>
+
+  <!-- ========== LEAKAGE ========== -->
+  <section id="leakage">
+    <p class="kicker">The Trap</p>
+    <h2 class="sec-title">A column from the future</h2>
+    <p>
+      Most columns in the dataset describe an order as it looked the moment it was placed. One does not.
+      <code>refund_amount</code> is only filled in <em>after</em> a return has already been processed &mdash; for an
+      order that was never returned, it's always zero. That's a textbook case of <strong>target leakage</strong>:
+      a column holding information that would not exist yet at the moment a real prediction is needed.
+    </p>
+    <p>
+      A model will happily learn from a leaking column anyway, and its scores will look spectacular right up until it
+      meets production data, where that column is always zero by definition.
+    </p>
+
+    <div class="auc-widget">
+      <div class="auc-toggle" id="aucToggle">
+        <button class="active" data-state="with">With refund_amount</button>
+        <button data-state="without">Without refund_amount</button>
+      </div>
+      <div class="auc-display">
+        <span class="auc-number" id="aucNumber">1.000</span>
+        <p class="auc-verdict" id="aucVerdict">
+          A <strong>perfect</strong> AUC. On real data, a perfect score almost always means a leak &mdash; the model
+          didn't learn anything about <em>why</em> orders return, it learned that a non-zero refund means a return.
+        </p>
+      </div>
+    </div>
+    <p>
+      The honest number, with the leaking column removed, is <strong>0.706</strong> &mdash; a modest score, and
+      modest is normal here. Whether a customer sends something back depends heavily on things the shop simply
+      never observes. From this point on, <code>refund_amount</code> is dropped entirely.
+    </p>
+
+    <details class="acc">
+      <summary>Checkpoint &mdash; think it through</summary>
+      <div class="acc-body">
+        <p>
+          Pick another column and ask whether it's actually known at the moment the order is placed. Try
+          <code>delivery_days</code>: is the number of days a parcel took to arrive known when the order goes in, or
+          only estimated? Reasoning about <em>when</em> each column becomes known catches leaks no automated tool can
+          find on its own, because the tool doesn't know the business.
+        </p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ========== WRANGLER ========== -->
+  <section id="wrangler">
+    <p class="kicker">No-Code Tooling</p>
+    <h2 class="sec-title">Finding the same leak without writing code</h2>
+    <p>
+      <strong>Data Wrangler</strong>, reached through SageMaker's no-code workspace Canvas, profiles a dataset and
+      generates an automatic report. Pointed at the same CSV, it independently flags <code>refund_amount</code> as
+      <strong>high target leakage</strong> &mdash; and even suggests the fix, a drop-column transform.
+    </p>
+    <p>
+      Its feature-power table scores each column's predictive strength in isolation. The gap between the top two
+      explains exactly why the warning fired:
+    </p>
+    <div class="barchart">
+      <div class="bar-row">
+        <span class="bar-label">refund_amount</span>
+        <div class="bar-track"><div class="bar-fill" data-pct="100" data-usd="0.583"></div></div>
+        <span class="bar-val">0.583</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">price</span>
+        <div class="bar-track"><div class="bar-fill" data-pct="46.5" data-usd="0.271"></div></div>
+        <span class="bar-val">0.271</span>
+      </div>
+    </div>
+    <p><code>refund_amount</code> scores more than double the next strongest column on its own &mdash; a strong signal that it isn't really a feature, it's an answer key.</p>
+
+    <h3 class="sub-title">Where this kind of tool actually fits</h3>
+    <p>
+      The warning is genuinely useful, and an analyst with no Python gets it in a few clicks. But the work inside such
+      a flow lives inside the tool itself. On an engineering team, the cleaning logic belongs in code that goes
+      through version control, review and CI. A fair way to use a profiling tool like this: look at a new dataset
+      fast, find the obvious problems, then write the actual fix where the rest of the code already lives.
+    </p>
+  </section>
+
+  <!-- ========== FORMAT ========== -->
+  <section id="format">
+    <p class="kicker">Data Preparation</p>
+    <h2 class="sec-title">Getting the data into the shape XGBoost expects</h2>
+    <p>
+      SageMaker's <strong>built-in algorithms</strong> are ready-made, AWS-maintained training containers &mdash; no
+      training code to write. The trade-off: the data must arrive in exactly the format the algorithm expects. For
+      the built-in XGBoost container reading CSV, that means three strict rules.
+    </p>
+    <div class="card-grid">
+      <div class="card"><span class="num">RULE</span><h4>Label first</h4><p>The target column goes in the first position, not the last.</p></div>
+      <div class="card"><span class="num">RULE</span><h4>No header row</h4><p>A header, left in by mistake, gets silently read as one row of data.</p></div>
+      <div class="card"><span class="num">RULE</span><h4>Numbers only</h4><p>Categories such as "apparel" must already be one-hot encoded into 0/1 columns.</p></div>
+    </div>
+
+    <h3 class="sub-title">The three-way split</h3>
+    <div class="split-bar">
+      <div class="split-seg seg-train">70% &middot; train</div>
+      <div class="split-seg seg-val">15%</div>
+      <div class="split-seg seg-batch">15%</div>
+    </div>
+    <div class="split-legend">
+      <span><span class="swatch" style="background:var(--gold)"></span>Train &middot; 8,400 rows</span>
+      <span><span class="swatch" style="background:#b89230"></span>Validation &middot; 1,800 rows</span>
+      <span><span class="swatch" style="background:#746326"></span>Batch (held out) &middot; 1,800 rows</span>
+    </div>
+    <p>
+      The batch split deliberately has its label column stripped out before it's used for scoring &mdash; a model
+      being asked for predictions shouldn't be handed the answers. Those answers are kept aside separately, to check
+      the batch scores afterward.
+    </p>
+
+    <details class="acc">
+      <summary>What happens if the header row is left in by accident</summary>
+      <div class="acc-body">
+        <p>
+          The built-in algorithm doesn't validate the input format &mdash; it reads whatever it's given. With a
+          header row left in a training run, the job didn't fail. Its log simply reported one extra row of training
+          data than actually existed, because the header's text got silently coerced into missing values. The model
+          came out nearly identical, since one bad row out of thousands barely moves anything &mdash; but a larger
+          mistake of the same kind would fail just as silently. The row count in the job log is the only tell, so it's worth reading.
+        </p>
+      </div>
+    </details>
+
+    <h3 class="sub-title">Feature order matters</h3>
+    <p>
+      After encoding, 18 feature columns remain in a fixed order. Whatever consumes this data later &mdash; a
+      training job, an endpoint &mdash; expects exactly these columns, in exactly this order, and nothing checks it automatically:
+    </p>
+    <div class="pill-row">
+      <span class="pill">price</span><span class="pill">discount_pct</span><span class="pill">delivery_days</span>
+      <span class="pill">customer_tenure_days</span><span class="pill">prior_orders</span><span class="pill">prior_returns</span>
+      <span class="pill">is_gift</span><span class="pill">seller_rating</span><span class="pill">category_apparel</span>
+      <span class="pill">category_beauty</span><span class="pill">category_books</span><span class="pill">category_electronics</span>
+      <span class="pill">category_footwear</span><span class="pill">category_home</span><span class="pill">payment_method_card</span>
+      <span class="pill">payment_method_cod</span><span class="pill">payment_method_upi</span><span class="pill">payment_method_wallet</span>
+    </div>
+  </section>
+
+  <!-- ========== SUMMARY ========== -->
+  <section id="summary">
+    <p class="kicker">Summary</p>
+    <h2 class="sec-title">What this stage actually accomplished</h2>
+    <p>
+      The work split across two roles. As platform engineer: a private network with no inbound path from the
+      internet, VPC endpoints for the AWS services carrying data and control traffic, a NAT gateway as the one-way
+      door out, a scoped IAM role, and a VPC-only domain joining it all together. As ML engineer: a remote editor
+      connected into that network, doing the actual data work in plain Python files &mdash; which is where this kind
+      of work tends to live on a real team.
+    </p>
+    <p>
+      The data itself had one real trap. A leaking column scored a perfect AUC until it was removed, and two small
+      models run side by side exposed it in seconds &mdash; a no-code profiling tool found the same thing without any
+      code at all. From there, the raw export was reshaped into the strict format the built-in XGBoost algorithm
+      requires: label first, no header, numbers only.
+    </p>
+    <div class="callout">
+      <span class="label">The recurring theme</span>
+      <p>
+        Nearly every failure along the way was quiet rather than loud: a missing permission with an unhelpful error,
+        a missing network endpoint that just spins forever, a header row read silently as data. None of it raised a
+        clear exception. Catching it came down to actually reading the numbers and the logs, not trusting that
+        something would shout if it was wrong.
+      </p>
+    </div>
+  </section>
+
+  <!-- ========== REFERENCES ========== -->
+  <section id="reading">
+    <p class="kicker">Further Reading</p>
+    <h2 class="sec-title">References</h2>
+    <h3 class="sub-title">Official documentation</h3>
+    <ul>
+      <li><a href="https://docs.aws.amazon.com/sagemaker/latest/dg/whatis.html" target="_blank" rel="noopener">Amazon SageMaker AI developer guide</a></li>
+      <li><a href="https://docs.aws.amazon.com/sagemaker/latest/dg/remote-access.html" target="_blank" rel="noopener">Connect a remote IDE to SageMaker spaces</a></li>
+      <li><a href="https://docs.aws.amazon.com/sagemaker/latest/dg/studio-updated-and-internet-access.html" target="_blank" rel="noopener">Connect Studio in a VPC to external resources</a></li>
+      <li><a href="https://docs.aws.amazon.com/sagemaker/latest/dg/canvas-vpc.html" target="_blank" rel="noopener">Configure Canvas in a VPC without internet access</a></li>
+      <li><a href="https://docs.aws.amazon.com/sagemaker/latest/dg/xgboost.html" target="_blank" rel="noopener">XGBoost algorithm with Amazon SageMaker AI</a></li>
+      <li><a href="https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-gateway.html" target="_blank" rel="noopener">NAT gateways</a></li>
+      <li><a href="https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AmazonSageMakerFullAccess.html" target="_blank" rel="noopener">AmazonSageMakerFullAccess policy reference</a></li>
+    </ul>
+    <h3 class="sub-title">Pricing</h3>
+    <ul>
+      <li><a href="https://aws.amazon.com/sagemaker/ai/pricing/" target="_blank" rel="noopener">Amazon SageMaker AI pricing</a></li>
+      <li><a href="https://aws.amazon.com/sagemaker/ai/canvas/pricing/" target="_blank" rel="noopener">Canvas pricing</a></li>
+      <li><a href="https://aws.amazon.com/vpc/pricing/" target="_blank" rel="noopener">Amazon VPC pricing</a></li>
+      <li><a href="https://aws.amazon.com/privatelink/pricing/" target="_blank" rel="noopener">AWS PrivateLink pricing</a></li>
+    </ul>
+    <h3 class="sub-title">Practitioner reading</h3>
+    <ul>
+      <li><a href="https://dl.acm.org/doi/10.1145/2382577.2382579" target="_blank" rel="noopener">Leakage in data mining &mdash; Kaufman, Rosset, Perlich &amp; Stitelman (2012)</a>, the standard paper on target leakage.</li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <span class="fgold">&#9670;</span> AWS Sagemaker part 1 post read
+</footer>
+
+<a href="#overview" class="top-link" id="topLink" aria-label="Back to top">&uarr;</a>
+
+<script>
+(function(){
+  // ---- Column explorer data ----
+  var columns = {
+    order_id: {tag:"identifier", text:"Which order this is. Purely an identifier \u2014 no predictive content, dropped before training."},
+    order_date: {tag:"identifier", text:"When the order was placed. Known at order time, but dropped before training since the raw date itself isn't a numeric feature here."},
+    category: {tag:"known at order time", text:"apparel, footwear, electronics, home, beauty or books \u2014 known the instant the order is placed."},
+    price: {tag:"known at order time", text:"The item's price. The single strongest honest predictor in the dataset."},
+    discount_pct: {tag:"known at order time", text:"The discount applied to the item, known at checkout."},
+    delivery_days: {tag:"worth questioning", text:"Delivery time in days. Is this the time the parcel actually took, or an estimate known at order time? Worth checking with whoever built the data."},
+    customer_tenure_days: {tag:"known at order time", text:"How long the customer has had an account \u2014 known from account history."},
+    prior_orders: {tag:"known at order time", text:"The customer's order history with the shop so far."},
+    prior_returns: {tag:"known at order time", text:"How many of the customer's past orders came back \u2014 a strong honest behavioral signal."},
+    payment_method: {tag:"known at order time", text:"card, upi, cod (cash on delivery) or wallet \u2014 selected at checkout."},
+    is_gift: {tag:"known at order time", text:"Whether the order was marked as a gift, set by the customer at checkout."},
+    seller_rating: {tag:"known at order time, has gaps", text:"The seller's rating out of 5. The only column with missing values \u2014 502 of 12,000 rows."},
+    refund_amount: {tag:"\u26a0 target leakage", text:"The amount refunded on the order \u2014 but this is only ever filled in AFTER a return has been processed. For any order that was never returned, it's always exactly zero. A model trained on it learns to recognize the answer key, not the underlying pattern, and scores a suspicious, unusable 1.0 AUC."},
+    returned: {tag:"the label", text:"1 if the order came back, 0 if not. This is what the model is trained to predict \u2014 moved to the first column before training, per the XGBoost input format."}
+  };
+  var chips = document.querySelectorAll('.col-chip');
+  var detail = document.getElementById('colDetail');
+  chips.forEach(function(chip){
+    chip.addEventListener('click', function(){
+      chips.forEach(function(c){ c.classList.remove('active'); });
+      chip.classList.add('active');
+      var key = chip.getAttribute('data-col');
+      var d = columns[key];
+      detail.innerHTML = '<span class="cd-title">'+key+'<span class="tag">'+d.tag+'</span></span>' + d.text;
+    });
+  });
+
+  // ---- AUC toggle ----
+  var aucBtns = document.querySelectorAll('#aucToggle button');
+  var aucNumber = document.getElementById('aucNumber');
+  var aucVerdict = document.getElementById('aucVerdict');
+  var states = {
+    with: {
+      val: "1.000",
+      html: 'A <strong>perfect</strong> AUC. On real data, a perfect score almost always means a leak \u2014 the model didn\u2019t learn anything about <em>why</em> orders return, it learned that a non-zero refund means a return.'
+    },
+    without: {
+      val: "0.706",
+      html: 'The <strong>honest</strong> number. A modest score \u2014 and modest is normal here, because whether a customer returns something depends heavily on things the shop never observes.'
+    }
+  };
+  aucBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      aucBtns.forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      var s = states[btn.getAttribute('data-state')];
+      aucNumber.textContent = s.val;
+      aucVerdict.innerHTML = s.html;
+    });
+  });
+
+  // ---- Tabs ----
+  document.querySelectorAll('.tabs').forEach(function(tabset){
+    var btns = tabset.querySelectorAll('.tab-btn');
+    var panels = tabset.querySelectorAll('.tab-panel');
+    btns.forEach(function(btn){
+      btn.addEventListener('click', function(){
+        btns.forEach(function(b){ b.classList.remove('active'); });
+        panels.forEach(function(p){ p.classList.remove('active'); });
+        btn.classList.add('active');
+        document.getElementById(btn.getAttribute('data-tab')).classList.add('active');
+      });
+    });
+  });
+
+  // ---- Animate bar charts on scroll into view ----
+  var bars = document.querySelectorAll('.bar-fill');
+  var observer = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if(entry.isIntersecting){
+        var el = entry.target;
+        el.style.width = el.getAttribute('data-pct') + '%';
+        observer.unobserve(el);
+      }
+    });
+  }, {threshold:0.3});
+  bars.forEach(function(b){ observer.observe(b); });
+
+  // ---- TOC active state + back-to-top ----
+  var sections = document.querySelectorAll('main section[id]');
+  var tocLinks = document.querySelectorAll('nav.toc a');
+  var topLink = document.getElementById('topLink');
+  window.addEventListener('scroll', function(){
+    var scrollY = window.scrollY;
+    topLink.classList.toggle('show', scrollY > 600);
+    var current = '';
+    sections.forEach(function(sec){
+      var top = sec.offsetTop - 120;
+      if(scrollY >= top) current = sec.getAttribute('id');
+    });
+    tocLinks.forEach(function(a){
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
